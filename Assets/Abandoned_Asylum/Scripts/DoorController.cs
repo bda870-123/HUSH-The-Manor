@@ -8,6 +8,7 @@ public class DoorController : MonoBehaviour
     public float openAngle = 115f;
     public float closeAngle = 0f;
     public float openSpeed = 2f;
+  
 
     private bool isOpen = false; // Tracks if door is open
     private float currentAngle;  // Internal state for smooth lerp
@@ -21,6 +22,8 @@ public class DoorController : MonoBehaviour
             player = GameObject.FindGameObjectWithTag("Player")?.transform;
 
         currentAngle = closeAngle;
+
+      
     }
 
     void Update()
@@ -39,6 +42,8 @@ public class DoorController : MonoBehaviour
         // Smoothly rotate door
         currentAngle = Mathf.LerpAngle(currentAngle, targetAngle, Time.deltaTime * openSpeed);
         door.localRotation = Quaternion.Euler(0f, currentAngle, 0f);
+
+     
     }
 }
 
