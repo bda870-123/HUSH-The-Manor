@@ -4,18 +4,18 @@ using TMPro;
 public class KeyPickup : MonoBehaviour
 {
     public string keyID = "KeyName"; // The unique ID of this key
-    public TextMeshProUGUI pickupText; // Optional: assign in inspector for "Press E to pick up" text
+    public TextMeshProUGUI pickupText; 
     public float pickupDistance = 3f;
 
     private Transform player;
-    private bool canPickUp = false;
+    // private bool canPickUp = false;
 
     void Start()
     {
         player = GameObject.FindGameObjectWithTag("Player")?.transform;
 
-        if (pickupText != null)
-            pickupText.gameObject.SetActive(false);
+       // if (pickupText != null)
+         //   pickupText.gameObject.SetActive(false);
     }
 
     void Update()
@@ -27,26 +27,26 @@ public class KeyPickup : MonoBehaviour
 
         if (distance <= pickupDistance)
         {
-            if (pickupText != null)
+           /* if (pickupText != null)
             {
                 pickupText.text = "Press [E] to pick up key";
                 pickupText.gameObject.SetActive(true);
-            }
+            }*/
 
-            canPickUp = true;
+           // canPickUp = true;
 
             if (Input.GetKeyDown(KeyCode.E))
             {
                 PickupKey();
             }
         }
-        else
+       /* else
         {
             if (pickupText != null)
                 pickupText.gameObject.SetActive(false);
 
             canPickUp = false;
-        }
+        }*/
     }
 
     void PickupKey()
