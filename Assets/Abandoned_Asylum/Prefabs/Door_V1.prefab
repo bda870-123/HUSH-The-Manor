@@ -120,9 +120,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   door: {fileID: 4661668726128898}
-  player: {fileID: 0}
-  activationDistance: 3
-  openAngle: -90
+  openAngle: -115
   closeAngle: 0
   openSpeed: 2
 --- !u!1 &1119892339220620
@@ -134,7 +132,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4546697730940662}
-  - component: {fileID: 1494514742414822987}
   m_Layer: 0
   m_Name: Door_V1
   m_TagString: Untagged
@@ -158,24 +155,6 @@ Transform:
   - {fileID: 2206047337174433995}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1494514742414822987
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1119892339220620}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 99223ab872f45554282cb17a73c3dac2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  door: {fileID: 4661668726128898}
-  player: {fileID: 9156347144040445546, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
-  activationDistance: 3
-  openAngle: 115
-  closeAngle: 0
-  openSpeed: 2
 --- !u!1 &3384784953023282592
 GameObject:
   m_ObjectHideFlags: 0
@@ -223,8 +202,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   door: {fileID: 4661668726128898}
-  player: {fileID: 9156347144040445546, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
-  activationDistance: 3
   openAngle: 115
   closeAngle: 0
   openSpeed: 2

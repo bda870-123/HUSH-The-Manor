@@ -1,0 +1,66 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+// Ensures interactable objects are compatible with the interactor source
+// Use this interface on object scripts that are interactable by player
+interface IInteractable
+{
+    public void Interact();
+}
+
+public class InteractRaycast : MonoBehaviour
+{
+    public Transform interactRaycastSource;
+    public float interactRange;
+
+    public Image reticleImage; // Drag your Reticle Image UI element here in the Inspector
+    public Color defaultColor = Color.white;
+    public Color highlightColor = Color.red;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        Ray ray = new Ray(interactRaycastSource.position, interactRaycastSource.forward);
+        bool isHittingInteractable = false;
+
+
+        // Send out raycast
+        if (Physics.Raycast(ray, out RaycastHit hitInfo, interactRange))
+        {
+            // Check if the hit object is interactable
+            if (hitInfo.collider.gameObject.TryGetComponent(out IInteractable interactObj))
+            {
+                isHittingInteractable = true;
+
+                // Handle Interaction on Key Press
+                if (Input.GetKeyDown(KeyCode.E))
+                {
+                    interactObj.Interact();
+                }
+            }
+        }
+
+        // This code sets reticle color depending if raycast is hitting an interactable
+        if (reticleImage != null)
+        {
+            if (isHittingInteractable)
+            {
+                // Raycast is true, change color to highlightColor
+                reticleImage.color = highlightColor;
+            }
+            else
+            {
+                // Raycast is false or hit non-interactable, revert to defaultColor
+                reticleImage.color = defaultColor;
+            }
+        }
+    }
+}
