@@ -36,8 +36,6 @@ public class DoorController : MonoBehaviour, IInteractable
 
     }
 
-
-
     public void Interact()
     {
         isOpen = !isOpen;
