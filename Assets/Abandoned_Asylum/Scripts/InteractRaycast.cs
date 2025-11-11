@@ -1,3 +1,5 @@
+// Written by Alan Miranda-Perez
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,12 +14,17 @@ interface IInteractable
 
 public class InteractRaycast : MonoBehaviour
 {
+    [Header("Raycast Parameters")]
     public Transform interactRaycastSource;
     public float interactRange;
 
+    [Header("UI")]
     public Image reticleImage; // Drag your Reticle Image UI element here in the Inspector
     public Color defaultColor = Color.white;
     public Color highlightColor = Color.red;
+
+    [Header("References")]
+    [SerializeField] private PlayerInputHandler playerInputHandler;
 
     // Start is called before the first frame update
     void Start()
@@ -41,7 +48,7 @@ public class InteractRaycast : MonoBehaviour
                 isHittingInteractable = true;
 
                 // Handle Interaction on Key Press
-                if (Input.GetKeyDown(KeyCode.E))
+                if (playerInputHandler.InteractTriggered)
                 {
                     interactObj.Interact();
                 }
