@@ -34,7 +34,7 @@ public class InteractRaycast : MonoBehaviour
     }
 
     // Update is called once per frame
-    void LateUpdate()
+    void Update()
     {
         Ray ray = new Ray(interactRaycastSource.position, interactRaycastSource.forward);
         bool isHittingInteractable = false;

@@ -2,7 +2,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 
-public class LockedDoorWithAudio : MonoBehaviour
+public class LockedDoorWithAudio : MonoBehaviour, IInteractable
 {
     [Header("Door Settings")]
     public Transform door;
@@ -50,11 +50,6 @@ public class LockedDoorWithAudio : MonoBehaviour
         if (distance <= activationDistance)
         {
             HandleInteractionText();
-
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                TryToggleDoor();
-            }
         }
         else if (interactText != null)
         {
@@ -65,6 +60,11 @@ public class LockedDoorWithAudio : MonoBehaviour
         float targetAngle = isOpen ? openAngle : closeAngle;
         currentAngle = Mathf.LerpAngle(currentAngle, targetAngle, Time.deltaTime * openSpeed);
         door.localRotation = Quaternion.Euler(0f, currentAngle, 0f);
+    }
+
+    public void Interact()
+    {
+        TryToggleDoor();
     }
 
     void HandleInteractionText()

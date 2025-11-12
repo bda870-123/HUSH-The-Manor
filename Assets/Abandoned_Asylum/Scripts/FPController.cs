@@ -23,8 +23,8 @@ public class FPController : MonoBehaviour
     [Header("Crouch Parameters")]
     [SerializeField] private float standingHeight = 2.0f;
     [SerializeField] private float crouchingHeight = 1.0f;
-    [SerializeField] private float standingHeadY = 1.8f;
-    [SerializeField] private float crouchingHeadY = 0.9f;
+    [SerializeField] private float standingHeadY = 0.8f;
+    [SerializeField] private float crouchingHeadY = 0.4f;
     [SerializeField] private float crouchMultiplier = 0.5f;
     [SerializeField] private float crouchTransitionSpeed = 10f;
     [SerializeField] private LayerMask whatIsObstacle;
@@ -209,5 +209,48 @@ public class FPController : MonoBehaviour
         // Check if this new standing capsule would collide with anything
         // We check against the "whatIsObstacle" layermask
         return !Physics.CheckCapsule(point1, point2, radius, whatIsObstacle);
+    }
+
+    // This will ensure scene visuals matches with game start.
+    private void OnValidate()
+    {
+        // --- 1. Get Component References ---
+        // We need to do this in case OnValidate runs before they are assigned.
+        if (characterController == null)
+            characterController = GetComponent<CharacterController>();
+
+        // Note: We can't find 'Body' or 'Head' by script, so we must
+        // rely on them being assigned in the Inspector.
+        // We will add null checks to prevent errors if they are empty.
+
+
+        // --- 2. Calculate Standing Values (like in Start()) ---
+
+        // This is the center of the physics capsule
+        Vector3 standingCenter = new Vector3(0, standingHeight / 2.0f, 0);
+
+        // This is the head's local position (relative to the body)
+        Vector3 standingHeadPos = new Vector3(0, standingHeadY, 0);
+
+        // --- 3. Apply All Values to Editor Components ---
+
+        // Update the Physics Capsule
+        if (characterController != null)
+        {
+            characterController.height = standingHeight;
+            characterController.center = standingCenter;
+        }
+
+        // Update the Visual Body
+        if (bodyTransform != null)
+        {
+            bodyTransform.localPosition = standingCenter;
+        }
+
+        // Update the Camera Target/Head
+        if (headTransform != null)
+        {
+            headTransform.localPosition = standingHeadPos;
+        }
     }
 }
