@@ -17,6 +17,7 @@ public class InteractRaycast : MonoBehaviour
     [Header("Raycast Parameters")]
     public Transform interactRaycastSource;
     public float interactRange;
+    [SerializeField] private LayerMask interactableMask;
 
     [Header("UI")]
     public Image reticleImage; // Drag your Reticle Image UI element here in the Inspector
@@ -33,14 +34,14 @@ public class InteractRaycast : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    void LateUpdate()
     {
         Ray ray = new Ray(interactRaycastSource.position, interactRaycastSource.forward);
         bool isHittingInteractable = false;
 
 
         // Send out raycast
-        if (Physics.Raycast(ray, out RaycastHit hitInfo, interactRange))
+        if (Physics.Raycast(ray, out RaycastHit hitInfo, interactRange, interactableMask))
         {
             // Check if the hit object is interactable
             if (hitInfo.collider.gameObject.TryGetComponent(out IInteractable interactObj))

@@ -20,25 +20,72 @@ public class FPController : MonoBehaviour
     [SerializeField] private float gamepadSensitivity = 150.0f;
     [SerializeField] private float upDownLookRange = 80.0f;
 
+    [Header("Crouch Parameters")]
+    [SerializeField] private float standingHeight = 2.0f;
+    [SerializeField] private float crouchingHeight = 1.0f;
+    [SerializeField] private float standingHeadY = 1.8f;
+    [SerializeField] private float crouchingHeadY = 0.9f;
+    [SerializeField] private float crouchMultiplier = 0.5f;
+    [SerializeField] private float crouchTransitionSpeed = 10f;
+    [SerializeField] private LayerMask whatIsObstacle;
+
     [Header("References")]
     [SerializeField] private CharacterController characterController;
     [SerializeField] private Transform headTransform;
+    [SerializeField] private Transform bodyTransform;
     [SerializeField] private PlayerInputHandler playerInputHandler;
 
     private Vector3 currentMovement;
     private float verticalRotation;
-    private float currentSpeed => walkSpeed * (playerInputHandler.SprintTriggered ? sprintMultiplier : 1);
+    private bool isCrouching = false;
+    private Vector3 standingCenter;
+    private Vector3 crouchingCenter;
+    private Vector3 standingHeadPosition;
+    private Vector3 crouchingHeadPosition;
+    private Vector3 standingBodyPosition;
+    private Vector3 crouchingBodyPosition;
+    private float currentSpeed
+    {
+        get
+        {
+            if(isCrouching)
+            {
+                return walkSpeed * crouchMultiplier;
+            }
+
+            if (playerInputHandler.SprintTriggered && !playerInputHandler.CrouchTriggered)
+            {
+                return walkSpeed * sprintMultiplier;
+            }
+            return walkSpeed;
+        }
+    }
 
     // Start is called before the first frame update
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+
+        characterController.height = standingHeight;
+
+        standingCenter = new Vector3(0, standingHeight / 2.0f, 0);
+        crouchingCenter = new Vector3(0, crouchingHeight / 2.0f, 0);
+        characterController.center = standingCenter;
+
+        standingHeadPosition = new Vector3(0, standingHeadY, 0);
+        crouchingHeadPosition = new Vector3(0, crouchingHeadY, 0);
+        headTransform.localPosition = standingHeadPosition;
+
+        standingBodyPosition = standingCenter;
+        crouchingBodyPosition = crouchingCenter;
+        bodyTransform.localPosition = standingBodyPosition;
     }
 
     // Update is called once per frame
     void Update()
     {
+        HandleCrouching();
         HandleMovement();
         HandleRotation();
     }
@@ -115,5 +162,52 @@ public class FPController : MonoBehaviour
 
         ApplyHorizontalRotation(rotationX);
         ApplyVerticlaRotation(rotationY);
+    }
+
+    private void HandleCrouching()
+    {
+        bool wantsToCrouch = playerInputHandler.CrouchTriggered;
+
+        if (wantsToCrouch)
+        {
+            isCrouching = true;
+        }
+        else
+        {
+            // Only stand if the state is crouched AND there's room
+            if (isCrouching && CanStand())
+            {
+                isCrouching = false;
+            }
+            // If we can't stand, "isCrouching" remains true
+        }
+
+        // Apply the state smoothly
+        float targetHeight = isCrouching ? crouchingHeight : standingHeight;
+        Vector3 targetCenter = isCrouching ? crouchingCenter : standingCenter;
+        Vector3 targetHeadPos = isCrouching ? crouchingHeadPosition : standingHeadPosition;
+        Vector3 targetBodyPos = isCrouching ? crouchingBodyPosition : standingBodyPosition;
+
+        // Lerp
+        characterController.height = Mathf.Lerp(characterController.height, targetHeight, Time.deltaTime * crouchTransitionSpeed);
+        characterController.center = Vector3.Lerp(characterController.center, targetCenter, Time.deltaTime * crouchTransitionSpeed);
+        headTransform.localPosition = Vector3.Lerp(headTransform.localPosition, targetHeadPos, Time.deltaTime * crouchTransitionSpeed);
+        bodyTransform.localPosition = Vector3.Lerp(bodyTransform.localPosition, targetBodyPos, Time.deltaTime * crouchTransitionSpeed);
+    }
+
+    private bool CanStand()
+    {
+        // Get the standing capsule's properties
+        Vector3 currentPos = transform.position;
+        float radius = characterController.radius;
+
+        // Calculate the top/bottom points of the *standing* capsule
+        // These are the centers of the spheres at the capsule's ends
+        Vector3 point1 = currentPos + standingCenter + (Vector3.down * (standingHeight / 2 - radius));
+        Vector3 point2 = currentPos + standingCenter + (Vector3.up * (standingHeight / 2 - radius));
+
+        // Check if this new standing capsule would collide with anything
+        // We check against the "whatIsObstacle" layermask
+        return !Physics.CheckCapsule(point1, point2, radius, whatIsObstacle);
     }
 }
