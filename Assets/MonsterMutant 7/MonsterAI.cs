@@ -3,86 +3,117 @@ using UnityEngine.AI;
 
 public class MonsterAI : MonoBehaviour
 {
+    [Header("References")]
     public NavMeshAgent agent;
     public Transform player;
-    public float chaseDistance = 10f;
-    public float wanderRadius = 15f;
-    public float wanderTimer = 5f;
     public AudioSource proximitySound;
 
-    private float timer;
-    private bool isChasing = false;
-    private float targetVolume = 0f;
+    [Header("Behavior Settings")]
+    public float chaseDistance = 20f;   // Start chasing when this close
+    public float wanderRadius = 25f;   // Random roam radius
+    public float wanderInterval = 5f;   // Seconds between picking new roam points
+
+    [Header("Movement Speeds")]
+    public float wanderSpeed = 3.5f;
+    public float chaseSpeed = 6f;
+
+    [Header("Audio Fade Settings")]
+    public float fadeSpeed = 2f;        // Speed of fade in/out
+
+    // Internal variables
+    float timer;
+    float targetVolume = 0f;
+    Animator anim;
+
+    void Awake()
+    {
+        if (!agent) agent = GetComponent<NavMeshAgent>();
+        // Finds Animator even if it's on a child object
+        anim = GetComponentInChildren<Animator>();
+    }
 
     void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
-        timer = wanderTimer;
+        timer = wanderInterval;
 
-        // Start sound silent and looped
-        if (proximitySound != null)
+        // Prep audio
+        if (proximitySound)
         {
-            proximitySound.volume = 0f;
             proximitySound.loop = true;
-            proximitySound.Play();
+            if (!proximitySound.isPlaying) proximitySound.Play();
+            proximitySound.volume = 0f; // start silent
         }
+
+        // Ensure NavMeshAgent is active
+        if (agent) agent.isStopped = false;
     }
 
     void Update()
     {
+        if (!agent || !player) return;
+
         float distance = Vector3.Distance(player.position, transform.position);
 
-        // If player is within chase range
-        if (distance < chaseDistance)
+        if (distance <= chaseDistance)
         {
-            isChasing = true;
+            // CHASE
+            agent.speed = chaseSpeed;
             agent.SetDestination(player.position);
             targetVolume = 1f; // full volume when close
         }
         else
         {
-            // Wander randomly
-            isChasing = false;
+            // WANDER
+            agent.speed = wanderSpeed;
             timer += Time.deltaTime;
 
-            if (timer >= wanderTimer)
+            if (timer >= wanderInterval || agent.remainingDistance <= agent.stoppingDistance)
             {
-                Vector3 newPos = RandomNavSphere(transform.position, wanderRadius, -1);
+                Vector3 newPos = RandomNavPoint(transform.position, wanderRadius);
                 agent.SetDestination(newPos);
-                timer = 0;
+                timer = 0f;
             }
 
             targetVolume = 0f; // fade out when far
         }
 
-        GetComponent<Animator>().SetFloat("Speed", agent.velocity.magnitude);
-        GetComponent<Animator>().speed = agent.velocity.magnitude > 0.1f ? 1f : 0.8f;
-
-
-
-        // Smooth sound fade (both in/out)
-        if (proximitySound != null)
+        // Smooth audio fade
+        if (proximitySound)
         {
-            proximitySound.volume = Mathf.Lerp(proximitySound.volume, targetVolume, Time.deltaTime * 2f);
+            proximitySound.volume = Mathf.MoveTowards(
+                proximitySound.volume,
+                targetVolume,
+                fadeSpeed * Time.deltaTime
+            );
+        }
+
+        // Update animator if found
+        if (anim)
+        {
+            float speedValue = agent.velocity.magnitude;
+            anim.SetFloat("Speed", speedValue);
+            anim.speed = speedValue > 0.1f ? 1f : 0.9f;
         }
     }
 
-    // Generates random points on the NavMesh for wandering
-    public static Vector3 RandomNavSphere(Vector3 origin, float dist, int layermask)
+    // Picks a random reachable point on NavMesh near origin
+    static Vector3 RandomNavPoint(Vector3 origin, float radius)
     {
-        Vector3 randDirection = Random.insideUnitSphere * dist;
-        randDirection += origin;
-        NavMeshHit navHit;
-        NavMesh.SamplePosition(randDirection, out navHit, dist, layermask);
-        return navHit.position;
-    }
-    void OnCollisionStay(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Wall"))
-        {
-            Vector3 pushDir = transform.position - collision.contacts[0].point;
-            agent.Move(pushDir.normalized * 0.5f * Time.deltaTime);
-        }
+        Vector3 rand = Random.insideUnitSphere * radius + origin;
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(rand, out hit, radius, NavMesh.AllAreas))
+            return hit.position;
+        return origin;
     }
 
+#if UNITY_EDITOR
+    // Draw chase and wander ranges in Scene view
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, chaseDistance);
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, wanderRadius);
+    }
+#endif
 }
