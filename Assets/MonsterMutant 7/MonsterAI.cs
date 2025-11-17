@@ -1,3 +1,4 @@
+﻿using UnityEngine;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -6,114 +7,70 @@ public class MonsterAI : MonoBehaviour
     [Header("References")]
     public NavMeshAgent agent;
     public Transform player;
-    public AudioSource proximitySound;
+    public Animator anim;
 
-    [Header("Behavior Settings")]
-    public float chaseDistance = 20f;   // Start chasing when this close
-    public float wanderRadius = 25f;   // Random roam radius
-    public float wanderInterval = 5f;   // Seconds between picking new roam points
-
-    [Header("Movement Speeds")]
+    [Header("Settings")]
+    public float chaseDistance = 20f;
+    public float wanderRadius = 25f;
     public float wanderSpeed = 3.5f;
     public float chaseSpeed = 6f;
 
-    [Header("Audio Fade Settings")]
-    public float fadeSpeed = 2f;        // Speed of fade in/out
-
-    // Internal variables
-    float timer;
-    float targetVolume = 0f;
-    Animator anim;
+    private Vector3 wanderPoint;
 
     void Awake()
     {
         if (!agent) agent = GetComponent<NavMeshAgent>();
-        // Finds Animator even if it's on a child object
-        anim = GetComponentInChildren<Animator>();
+        if (!anim) anim = GetComponentInChildren<Animator>();
     }
 
     void Start()
     {
-        timer = wanderInterval;
-
-        // Prep audio
-        if (proximitySound)
-        {
-            proximitySound.loop = true;
-            if (!proximitySound.isPlaying) proximitySound.Play();
-            proximitySound.volume = 0f; // start silent
-        }
-
-        // Ensure NavMeshAgent is active
-        if (agent) agent.isStopped = false;
+        PickNewWanderPoint();
+        agent.SetDestination(wanderPoint);
     }
 
     void Update()
     {
-        if (!agent || !player) return;
+        float distance = Vector3.Distance(transform.position, player.position);
 
-        float distance = Vector3.Distance(player.position, transform.position);
-
+        // -----------------------------
+        //           CHASE
+        // -----------------------------
         if (distance <= chaseDistance)
         {
-            // CHASE
             agent.speed = chaseSpeed;
             agent.SetDestination(player.position);
-            targetVolume = 1f; // full volume when close
         }
         else
         {
-            // WANDER
+            // -----------------------------
+            //          WANDER
+            // -----------------------------
             agent.speed = wanderSpeed;
-            timer += Time.deltaTime;
 
-            if (timer >= wanderInterval || agent.remainingDistance <= agent.stoppingDistance)
+            // If we reached our wander point or have no path -> get a new one
+            if (!agent.hasPath || agent.remainingDistance < 1f)
             {
-                Vector3 newPos = RandomNavPoint(transform.position, wanderRadius);
-                agent.SetDestination(newPos);
-                timer = 0f;
+                PickNewWanderPoint();
+                agent.SetDestination(wanderPoint);
             }
-
-            targetVolume = 0f; // fade out when far
         }
 
-        // Smooth audio fade
-        if (proximitySound)
-        {
-            proximitySound.volume = Mathf.MoveTowards(
-                proximitySound.volume,
-                targetVolume,
-                fadeSpeed * Time.deltaTime
-            );
-        }
-
-        // Update animator if found
-        if (anim)
-        {
-            float speedValue = agent.velocity.magnitude;
-            anim.SetFloat("Speed", speedValue);
-            anim.speed = speedValue > 0.1f ? 1f : 0.9f;
-        }
+        // Update animation blend tree
+        anim.SetFloat("Speed", agent.velocity.magnitude);
     }
 
-    // Picks a random reachable point on NavMesh near origin
-    static Vector3 RandomNavPoint(Vector3 origin, float radius)
+    // ---------------------------------------------------
+    //    Picks a valid random point on the NavMesh
+    // ---------------------------------------------------
+    void PickNewWanderPoint()
     {
-        Vector3 rand = Random.insideUnitSphere * radius + origin;
+        Vector3 randomDirection = Random.insideUnitSphere * wanderRadius;
+        randomDirection += transform.position;
+
         NavMeshHit hit;
-        if (NavMesh.SamplePosition(rand, out hit, radius, NavMesh.AllAreas))
-            return hit.position;
-        return origin;
-    }
+        NavMesh.SamplePosition(randomDirection, out hit, wanderRadius, NavMesh.AllAreas);
 
-#if UNITY_EDITOR
-    // Draw chase and wander ranges in Scene view
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, chaseDistance);
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(transform.position, wanderRadius);
+        wanderPoint = hit.position;
     }
-#endif
 }
