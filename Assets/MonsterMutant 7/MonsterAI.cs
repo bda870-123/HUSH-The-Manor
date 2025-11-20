@@ -1,119 +1,200 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public class MonsterAI : MonoBehaviour
+public class EnemyAI : MonoBehaviour
 {
     [Header("References")]
-    public NavMeshAgent agent;
     public Transform player;
-    public AudioSource proximitySound;
+    public Animator animator;
+    public PlayerHealth playerHealth;
 
-    [Header("Behavior Settings")]
-    public float chaseDistance = 20f;   // Start chasing when this close
-    public float wanderRadius = 25f;   // Random roam radius
-    public float wanderInterval = 5f;   // Seconds between picking new roam points
+    [Header("Settings")]
+    public float detectionRadius = 15f;
+    public float attackRange = 2f;
+    public float patrolRadius = 20f;
+    public float attackCooldown = 2f;
+    public float patrolIdleTime = 3f;
+    public float rotationSpeed = 7f;
+    public float attackDuration = 1.0f; // Duration of attack animation 
 
-    [Header("Movement Speeds")]
-    public float wanderSpeed = 3.5f;
-    public float chaseSpeed = 6f;
+    private NavMeshAgent agent;
+    private float cooldownTimer;
+    private float idleTimer;
+    private float attackTimer;
 
-    [Header("Audio Fade Settings")]
-    public float fadeSpeed = 2f;        // Speed of fade in/out
+    private Vector3 patrolPoint;
+    private bool isPatrolling;
+    private bool isIdle;
+    private bool isAttacking;
 
-    // Internal variables
-    float timer;
-    float targetVolume = 0f;
-    Animator anim;
-
-    void Awake()
-    {
-        if (!agent) agent = GetComponent<NavMeshAgent>();
-        // Finds Animator even if it's on a child object
-        anim = GetComponentInChildren<Animator>();
-    }
+    private enum State { Patrol, Chase, Attack }
+    private State currentState;
 
     void Start()
     {
-        timer = wanderInterval;
+        agent = GetComponent<NavMeshAgent>();
+        if (animator == null) animator = GetComponent<Animator>();
+        if (playerHealth == null && player != null) playerHealth = player.GetComponent<PlayerHealth>();
 
-        // Prep audio
-        if (proximitySound)
-        {
-            proximitySound.loop = true;
-            if (!proximitySound.isPlaying) proximitySound.Play();
-            proximitySound.volume = 0f; // start silent
-        }
-
-        // Ensure NavMeshAgent is active
-        if (agent) agent.isStopped = false;
+        SetNewPatrolPoint();
+        currentState = State.Patrol;
     }
 
     void Update()
     {
-        if (!agent || !player) return;
+        cooldownTimer -= Time.deltaTime;
 
-        float distance = Vector3.Distance(player.position, transform.position);
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
-        if (distance <= chaseDistance)
+        // Cancel attack if player leaves attack range
+        if (isAttacking && distanceToPlayer > attackRange)
         {
-            // CHASE
-            agent.speed = chaseSpeed;
-            agent.SetDestination(player.position);
-            targetVolume = 1f; // full volume when close
+            CancelAttack();
+            currentState = State.Chase;
         }
-        else
-        {
-            // WANDER
-            agent.speed = wanderSpeed;
-            timer += Time.deltaTime;
 
-            if (timer >= wanderInterval || agent.remainingDistance <= agent.stoppingDistance)
+        // Handle attack duration manually (no animation event needed)
+        if (isAttacking)
+        {
+            attackTimer -= Time.deltaTime;
+            if (attackTimer <= 0f)
             {
-                Vector3 newPos = RandomNavPoint(transform.position, wanderRadius);
-                agent.SetDestination(newPos);
-                timer = 0f;
+                EndAttack();
             }
-
-            targetVolume = 0f; // fade out when far
         }
 
-        // Smooth audio fade
-        if (proximitySound)
+        // State switching
+        if (!isAttacking)
         {
-            proximitySound.volume = Mathf.MoveTowards(
-                proximitySound.volume,
-                targetVolume,
-                fadeSpeed * Time.deltaTime
-            );
+            if (distanceToPlayer <= attackRange && cooldownTimer <= 0f)
+                currentState = State.Attack;
+            else if (distanceToPlayer <= detectionRadius)
+                currentState = State.Chase;
+            else
+                currentState = State.Patrol;
         }
 
-        // Update animator if found
-        if (anim)
+        // Execute state
+        switch (currentState)
         {
-            float speedValue = agent.velocity.magnitude;
-            anim.SetFloat("Speed", speedValue);
-            anim.speed = speedValue > 0.1f ? 1f : 0.9f;
+            case State.Patrol: Patrol(); break;
+            case State.Chase: ChasePlayer(); break;
+            case State.Attack: Attack(); break;
+        }
+
+        animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f && !isAttacking);
+
+        if (!isAttacking)
+            RotateTowardsMovementDirection();
+    }
+
+    void Patrol()
+    {
+        if (isIdle)
+        {
+            idleTimer += Time.deltaTime;
+            if (idleTimer >= patrolIdleTime)
+            {
+                SetNewPatrolPoint();
+                idleTimer = 0f;
+            }
+            return;
+        }
+
+        if (!isPatrolling || Vector3.Distance(transform.position, patrolPoint) < 1.5f)
+        {
+            isIdle = true;
+            isPatrolling = false;
+            agent.ResetPath();
         }
     }
 
-    // Picks a random reachable point on NavMesh near origin
-    static Vector3 RandomNavPoint(Vector3 origin, float radius)
+    void SetNewPatrolPoint()
     {
-        Vector3 rand = Random.insideUnitSphere * radius + origin;
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(rand, out hit, radius, NavMesh.AllAreas))
-            return hit.position;
-        return origin;
+        Vector3 randomDirection = Random.insideUnitSphere * patrolRadius + transform.position;
+
+        if (NavMesh.SamplePosition(randomDirection, out NavMeshHit hit, patrolRadius, NavMesh.AllAreas))
+        {
+            patrolPoint = hit.position;
+            agent.SetDestination(patrolPoint);
+            isPatrolling = true;
+            isIdle = false;
+        }
     }
 
-#if UNITY_EDITOR
-    // Draw chase and wander ranges in Scene view
-    void OnDrawGizmosSelected()
+    void ChasePlayer()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, chaseDistance);
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(transform.position, wanderRadius);
+        isIdle = false;
+        isPatrolling = false;
+
+        if (agent.isOnNavMesh && player != null)
+            agent.SetDestination(player.position);
     }
-#endif
+
+    void Attack()
+    {
+        if (isAttacking) return;
+
+        float distance = Vector3.Distance(transform.position, player.position);
+        if (distance > attackRange)
+        {
+            currentState = State.Chase;
+            return;
+        }
+
+        isAttacking = true;
+        cooldownTimer = attackCooldown;
+        attackTimer = attackDuration;
+        agent.ResetPath();
+
+        // Rotate to face player instantly
+        Vector3 lookPos = new Vector3(player.position.x, transform.position.y, player.position.z);
+        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookPos - transform.position), Time.deltaTime * rotationSpeed);
+
+        animator.ResetTrigger("Attack");
+        animator.SetTrigger("Attack");
+    }
+
+    public void DealDamage()
+    {
+        if (Vector3.Distance(transform.position, player.position) <= attackRange)
+        {
+            playerHealth.TakeDamage(10); // Damage amount
+        }
+    }
+
+    public void EndAttack()
+    {
+        isAttacking = false;
+        attackTimer = 0f;
+    }
+
+    public void CancelAttack()
+    {
+        if (!isAttacking) return;
+
+        isAttacking = false;
+        attackTimer = 0f;
+        cooldownTimer = attackCooldown;
+
+        animator.ResetTrigger("Attack");
+
+        // Instantly cut the attack animation
+        if (animator.HasState(0, Animator.StringToHash("Walk")))
+            animator.CrossFade("Walk", 0.1f);
+        else if (animator.HasState(0, Animator.StringToHash("Walk")))
+            animator.CrossFade("Walk", 0.1f);
+
+        if (agent.isOnNavMesh && player != null)
+            agent.SetDestination(player.position);
+    }
+
+    void RotateTowardsMovementDirection()
+    {
+        if (agent.velocity.sqrMagnitude > 0.1f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(agent.velocity.normalized);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+        }
+    }
 }
