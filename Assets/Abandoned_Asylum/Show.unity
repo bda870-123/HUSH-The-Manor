@@ -6765,6 +6765,7 @@ MonoBehaviour:
   openDelay: 0
   closeDelay: 1
 <<<<<<< HEAD
+<<<<<<< HEAD
 --- !u!1 &1138950103 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6347845055732319078, guid: 1f767fa48db25104c96a9670cc753b1b, type: 3}
@@ -6951,6 +6952,8 @@ MonoBehaviour:
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 802c1451e5a97d542908338fc08639ed, type: 2}
   m_BuildHeightMesh: 0
+=======
+>>>>>>> parent of 72ee914 (Navmesh?)
 =======
 >>>>>>> parent of 72ee914 (Navmesh?)
 --- !u!1 &1169954015
