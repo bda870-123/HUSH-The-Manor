@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -7,7 +8,10 @@ public class LockedDoorWithAudio : MonoBehaviour, IInteractable
     [Header("Door Settings")]
     public Transform door;
     public Transform player;
-    public string requiredKeyID = "KeyName";
+
+    [Tooltip("You must have ALL keys in this list to unlock the door.")]
+    public List<string> requiredKeyIDs = new List<string>();
+
     public float activationDistance = 3f;
     public float openAngle = 115f;
     public float closeAngle = 0f;
@@ -22,7 +26,7 @@ public class LockedDoorWithAudio : MonoBehaviour, IInteractable
     [SerializeField] private AudioSource audioSource = null;
     [SerializeField] private AudioClip doorOpenClip = null;
     [SerializeField] private AudioClip doorCloseClip = null;
-    [SerializeField] private AudioClip lockedClip = null;  // Sound when trying to open a locked door
+    [SerializeField] private AudioClip lockedClip = null;
     [SerializeField] private float openDelay = 0f;
     [SerializeField] private float closeDelay = 0f;
 
@@ -56,7 +60,6 @@ public class LockedDoorWithAudio : MonoBehaviour, IInteractable
             interactText.gameObject.SetActive(false);
         }
 
-        // Smoothly rotate the door
         float targetAngle = isOpen ? openAngle : closeAngle;
         currentAngle = Mathf.LerpAngle(currentAngle, targetAngle, Time.deltaTime * openSpeed);
         door.localRotation = Quaternion.Euler(0f, currentAngle, 0f);
@@ -72,10 +75,14 @@ public class LockedDoorWithAudio : MonoBehaviour, IInteractable
         if (interactText == null)
             return;
 
-        if (!isUnlocked && !KeyInventory.Instance.HasKey(requiredKeyID))
-            interactText.text = "Locked: Requires " + requiredKeyID;
+        if (!isUnlocked && !PlayerHasAllKeys())
+        {
+            interactText.text = "Locked: Requires multiple keys";
+        }
         else
+        {
             interactText.text = "Press [E] to open or close";
+        }
 
         interactText.gameObject.SetActive(true);
     }
@@ -84,29 +91,45 @@ public class LockedDoorWithAudio : MonoBehaviour, IInteractable
     {
         if (isUnlocked)
         {
-            // Toggle door state and play sound
             isOpen = !isOpen;
+
             if (isOpen)
                 StartCoroutine(PlayClipWithDelay(doorOpenClip, openDelay));
             else
                 StartCoroutine(PlayClipWithDelay(doorCloseClip, closeDelay));
+
             return;
         }
 
-        // Check inventory for key
-        if (KeyInventory.Instance != null && KeyInventory.Instance.HasKey(requiredKeyID))
+        // REQUIRES ALL KEYS
+        if (PlayerHasAllKeys())
         {
             isUnlocked = true;
             isOpen = true;
-            Debug.Log("Door unlocked with key: " + requiredKeyID);
+            Debug.Log("Door unlocked! Player has ALL required keys.");
             StartCoroutine(PlayClipWithDelay(doorOpenClip, openDelay));
         }
         else
         {
-            Debug.Log("Door is locked. You need the " + requiredKeyID);
+            Debug.Log("Door is locked. Missing one or more required keys.");
             if (lockedClip != null)
                 audioSource.PlayOneShot(lockedClip);
         }
+    }
+
+    // MUST HAVE ALL KEYS TO UNLOCK
+    private bool PlayerHasAllKeys()
+    {
+        if (KeyInventory.Instance == null)
+            return false;
+
+        foreach (string keyID in requiredKeyIDs)
+        {
+            if (!KeyInventory.Instance.HasKey(keyID))
+                return false; // missing a key cannot unlock
+        }
+
+        return true; // has all keys
     }
 
     private IEnumerator PlayClipWithDelay(AudioClip clip, float delay)
