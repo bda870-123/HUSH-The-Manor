@@ -4,5 +4,12 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
-  m_configObjects: {}
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Abandoned_Asylum/Main Menu.unity
+    guid: 605b93286e0289948ba5e7a471fb098a
+  - enabled: 1
+    path: Assets/Abandoned_Asylum/Show.unity
+    guid: 30fb6719a9eb1d84a807a42d598b16f8
+  m_configObjects:
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 3dc82ef850b62a543a8fb52c3c57521f, type: 3}
