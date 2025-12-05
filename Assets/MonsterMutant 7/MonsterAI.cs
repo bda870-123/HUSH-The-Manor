@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.AI;
 
 public class EnemyAI : MonoBehaviour
@@ -21,7 +21,6 @@ public class EnemyAI : MonoBehaviour
     private float cooldownTimer;
     private float idleTimer;
     private float attackTimer;
-    private float stuckTimer;
 
     private Vector3 patrolPoint;
     private bool isPatrolling;
@@ -54,7 +53,7 @@ public class EnemyAI : MonoBehaviour
             currentState = State.Chase;
         }
 
-        // Handle attack duration manually
+        // Handle attack duration manually (no animation event needed)
         if (isAttacking)
         {
             attackTimer -= Time.deltaTime;
@@ -87,25 +86,26 @@ public class EnemyAI : MonoBehaviour
 
         if (!isAttacking)
             RotateTowardsMovementDirection();
-
-        HandleUnstuck();
     }
 
-    /* -----------------------------
-       FIXED PATROL SYSTEM (NEVER FREEZES)
-       ----------------------------- */
     void Patrol()
     {
-        // If reached patrol point → idle
-        if (agent.remainingDistance <= agent.stoppingDistance)
+        if (isIdle)
         {
             idleTimer += Time.deltaTime;
-
             if (idleTimer >= patrolIdleTime)
             {
                 SetNewPatrolPoint();
                 idleTimer = 0f;
             }
+            return;
+        }
+
+        if (!isPatrolling || Vector3.Distance(transform.position, patrolPoint) < 1.5f)
+        {
+            isIdle = true;
+            isPatrolling = false;
+            agent.ResetPath();
         }
     }
 
@@ -145,11 +145,9 @@ public class EnemyAI : MonoBehaviour
         isAttacking = true;
         cooldownTimer = attackCooldown;
         attackTimer = attackDuration;
+        agent.ResetPath();
 
-        // DO NOT ResetPath() – this caused freezing
-        agent.SetDestination(transform.position); // stops moving safely
-
-        // Rotate to face player
+        // Rotate to face player instantly
         Vector3 lookPos = new Vector3(player.position.x, transform.position.y, player.position.z);
         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookPos - transform.position), Time.deltaTime * rotationSpeed);
 
@@ -161,7 +159,7 @@ public class EnemyAI : MonoBehaviour
     {
         if (Vector3.Distance(transform.position, player.position) <= attackRange)
         {
-            playerHealth.TakeDamage(10);
+            playerHealth.TakeDamage(10); // Damage amount
         }
     }
 
@@ -180,7 +178,12 @@ public class EnemyAI : MonoBehaviour
         cooldownTimer = attackCooldown;
 
         animator.ResetTrigger("Attack");
-        animator.CrossFade("Walk", 0.1f);
+
+        // Instantly cut the attack animation
+        if (animator.HasState(0, Animator.StringToHash("Walk")))
+            animator.CrossFade("Walk", 0.1f);
+        else if (animator.HasState(0, Animator.StringToHash("Walk")))
+            animator.CrossFade("Walk", 0.1f);
 
         if (agent.isOnNavMesh && player != null)
             agent.SetDestination(player.position);
@@ -192,27 +195,6 @@ public class EnemyAI : MonoBehaviour
         {
             Quaternion targetRotation = Quaternion.LookRotation(agent.velocity.normalized);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-        }
-    }
-
-    /* -----------------------------
-       OPTIONAL WALL UNSTUCK FIX
-       ----------------------------- */
-    void HandleUnstuck()
-    {
-        if (agent.velocity.magnitude < 0.05f && !isAttacking)
-        {
-            stuckTimer += Time.deltaTime;
-
-            if (stuckTimer > 1.5f)
-            {
-                SetNewPatrolPoint();
-                stuckTimer = 0f;
-            }
-        }
-        else
-        {
-            stuckTimer = 0f;
         }
     }
 }
