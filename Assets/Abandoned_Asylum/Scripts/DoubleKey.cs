@@ -112,15 +112,20 @@ public class DoubleKey : MonoBehaviour, IInteractable
             isUnlocked = true;
             isOpen = true;
 
-            Debug.Log("Door unlocked with: " + requiredKeyID + " + " + requiredKeyID2);
+            Debug.Log("Door unlocked with: " + requiredKeyID + " + requiredKeyID2");
+        
             StartCoroutine(PlayClipWithDelay(doorOpenClip, openDelay));
         }
+
+
         else
         {
             Debug.Log("Door is locked. You need: " + requiredKeyID + " and " + requiredKeyID2);
             if (lockedClip != null)
                 audioSource.PlayOneShot(lockedClip);
         }
+
+
     }
 
     private IEnumerator PlayClipWithDelay(AudioClip clip, float delay)
