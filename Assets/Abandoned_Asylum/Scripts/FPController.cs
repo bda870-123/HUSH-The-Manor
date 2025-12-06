@@ -92,7 +92,7 @@ public class FPController : MonoBehaviour
 
     private Vector3 CalculateWorldDirection()
     {
-        Vector3 inputDirection = new Vector3(playerInputHandler.MovementInput.x, 0f, playerInputHandler.MovementInput.y);
+        Vector3 inputDirection = new Vector3(playerInputHandler.MoveInput.x, 0f, playerInputHandler.MoveInput.y);
         Vector3 worldDirectoin = transform.TransformDirection(inputDirection);
 
         return worldDirectoin.normalized;
@@ -139,8 +139,8 @@ public class FPController : MonoBehaviour
 
     private void HandleRotation()
     {
-        float inputX = playerInputHandler.RotationInput.x;
-        float inputY = playerInputHandler.RotationInput.y;
+        float inputX = playerInputHandler.LookInput.x;
+        float inputY = playerInputHandler.LookInput.y;
 
         float rotationX;
         float rotationY;

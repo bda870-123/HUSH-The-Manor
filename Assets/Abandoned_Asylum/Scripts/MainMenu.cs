@@ -8,6 +8,11 @@ using UnityEngine.EventSystems;
 
 public class MainMenu : MonoBehaviour
 {
+    void Start()
+    {
+        Screen.fullScreen = true;
+    }
+
     public Button defaultButton;
     private void Update()
     {
@@ -18,6 +23,10 @@ public class MainMenu : MonoBehaviour
                 EventSystem.current.SetSelectedGameObject(defaultButton.gameObject);
             }
         }
+    }
+    private void OnEnable()
+    {
+        EventSystem.current.SetSelectedGameObject(null);
     }
 
     public void StartGame()

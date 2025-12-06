@@ -15,59 +15,64 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private string actionMapName = "Player";
 
     [Header("Action Name References")]
-    [SerializeField] private string movement = "Movement";
-    [SerializeField] private string rotation = "Rotation";
+    [SerializeField] private string move = "Move";
+    [SerializeField] private string look = "Look";
     [SerializeField] private string jump = "Jump";
     [SerializeField] private string sprint = "Sprint";
     [SerializeField] private string interact = "Interact";
     [SerializeField] private string crouch = "Crouch";
+    [SerializeField] private string pause = "Pause";
 
-    private InputAction movementAction;
-    private InputAction rotationAction;
+    private InputAction moveAction;
+    private InputAction lookAction;
     private InputAction jumpAction;
     private InputAction sprintAction;
     private InputAction interactAction;
     private InputAction crouchAction;
+    private InputAction pauseAction;
 
-    public Vector2 MovementInput { get; private set; }
-    public Vector2 RotationInput { get; private set; }
+    public Vector2 MoveInput { get; private set; }
+    public Vector2 LookInput { get; private set; }
     public bool JumpTriggered { get; private set; }
     public bool SprintTriggered { get; private set; }
     public bool InteractTriggered { get; private set; }
     public bool CrouchTriggered { get; private set; }
+    public bool PauseTriggered { get; private set; }
     public bool IsUsingGamepad { get; private set; }
 
 
     private void Awake()
     {
+        InputSaver.Load(playerControls);
+
         InputActionMap mapReferences = playerControls.FindActionMap(actionMapName);
 
-        movementAction = mapReferences.FindAction(movement);
-        rotationAction = mapReferences.FindAction(rotation);
+        moveAction = mapReferences.FindAction(move);
+        lookAction = mapReferences.FindAction(look);
         jumpAction = mapReferences.FindAction(jump);
         sprintAction = mapReferences.FindAction(sprint);
         interactAction = mapReferences.FindAction(interact);
         crouchAction = mapReferences.FindAction(crouch);
+        pauseAction = mapReferences.FindAction(pause);
 
         SubscribeActionValuesToInputEvents();
     }
 
     private void SubscribeActionValuesToInputEvents()
     {
-        movementAction.performed += inputInfo => MovementInput = inputInfo.ReadValue<Vector2>();
-        movementAction.canceled += inputInfo => MovementInput = Vector2.zero;
+        moveAction.performed += inputInfo => MoveInput = inputInfo.ReadValue<Vector2>();
+        moveAction.canceled += inputInfo => MoveInput = Vector2.zero;
 
-        rotationAction.performed += inputInfo =>
+        lookAction.performed += inputInfo =>
         {
             // Check if the control that triggered this action is a gamepad
             IsUsingGamepad = inputInfo.control.device is Gamepad;
 
-            RotationInput = inputInfo.ReadValue<Vector2>();
+            LookInput = inputInfo.ReadValue<Vector2>();
         };
-        rotationAction.canceled += inputInfo => RotationInput = Vector2.zero;
+        lookAction.canceled += inputInfo => LookInput = Vector2.zero;
 
         jumpAction.performed += inputInfo => JumpTriggered = true;
-        jumpAction.canceled += inputInfo => JumpTriggered = false;
 
         sprintAction.performed += inputInfo => SprintTriggered = true;
         sprintAction.canceled += inputInfo => SprintTriggered = false;
@@ -76,11 +81,15 @@ public class PlayerInputHandler : MonoBehaviour
 
         crouchAction.performed += inputInfo => CrouchTriggered = true;
         crouchAction.canceled += inputInfo => CrouchTriggered = false;
+
+        pauseAction.performed += inputInfo => PauseTriggered = true;
     }
 
     private void LateUpdate()
     {
         InteractTriggered = false;
+        PauseTriggered = false;
+        JumpTriggered = false;
 
     }
 
