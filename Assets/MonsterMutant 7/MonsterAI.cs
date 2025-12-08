@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 
 public class EnemyAI : MonoBehaviour
@@ -10,17 +10,18 @@ public class EnemyAI : MonoBehaviour
 
     [Header("Settings")]
     public float detectionRadius = 15f;
-    public float attackRange = 2f;
+    public float attackRange = 2.5f; // Increased for consistency
     public float patrolRadius = 20f;
     public float attackCooldown = 2f;
     public float patrolIdleTime = 3f;
     public float rotationSpeed = 7f;
-    public float attackDuration = 1.0f; // Duration of attack animation 
+    public float attackDuration = 1.0f;
 
     private NavMeshAgent agent;
     private float cooldownTimer;
     private float idleTimer;
     private float attackTimer;
+    private float stuckTimer;
 
     private Vector3 patrolPoint;
     private bool isPatrolling;
@@ -34,7 +35,10 @@ public class EnemyAI : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         if (animator == null) animator = GetComponent<Animator>();
-        if (playerHealth == null && player != null) playerHealth = player.GetComponent<PlayerHealth>();
+        if (playerHealth == null && player != null)
+            playerHealth = player.GetComponent<PlayerHealth>();
+
+        agent.updateRotation = false; // We rotate manually
 
         SetNewPatrolPoint();
         currentState = State.Patrol;
@@ -44,26 +48,27 @@ public class EnemyAI : MonoBehaviour
     {
         cooldownTimer -= Time.deltaTime;
 
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+        // Horizontal-only distance
+        Vector3 flatEnemy = new Vector3(transform.position.x, 0, transform.position.z);
+        Vector3 flatPlayer = new Vector3(player.position.x, 0, player.position.z);
+        float distanceToPlayer = Vector3.Distance(flatEnemy, flatPlayer);
 
-        // Cancel attack if player leaves attack range
+        // Cancel attack if player leaves range
         if (isAttacking && distanceToPlayer > attackRange)
         {
             CancelAttack();
             currentState = State.Chase;
         }
 
-        // Handle attack duration manually (no animation event needed)
+        // Attack timer countdown
         if (isAttacking)
         {
             attackTimer -= Time.deltaTime;
             if (attackTimer <= 0f)
-            {
                 EndAttack();
-            }
         }
 
-        // State switching
+        // Decide state
         if (!isAttacking)
         {
             if (distanceToPlayer <= attackRange && cooldownTimer <= 0f)
@@ -74,7 +79,7 @@ public class EnemyAI : MonoBehaviour
                 currentState = State.Patrol;
         }
 
-        // Execute state
+        // Execute behavior
         switch (currentState)
         {
             case State.Patrol: Patrol(); break;
@@ -82,12 +87,25 @@ public class EnemyAI : MonoBehaviour
             case State.Attack: Attack(); break;
         }
 
+        // Animation
         animator.SetBool("IsWalking", agent.velocity.magnitude > 0.1f && !isAttacking);
 
+        // Smooth rotation
         if (!isAttacking)
             RotateTowardsMovementDirection();
+
+        // Prevent wall sticking
+        HandleGlobalUnstuck();
     }
 
+    // ---------------- PATROL ----------------
+    public void AttackJumpscare()
+    {
+        if (Vector3.Distance(transform.position, player.position) <= attackRange)
+        {
+            FindObjectOfType<JumpscareManager>().TriggerJumpscare();
+        }
+    }
     void Patrol()
     {
         if (isIdle)
@@ -122,20 +140,29 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
+    // ---------------- CHASE ----------------
     void ChasePlayer()
     {
         isIdle = false;
         isPatrolling = false;
 
         if (agent.isOnNavMesh && player != null)
+        {
+            agent.updatePosition = true;
             agent.SetDestination(player.position);
+        }
     }
 
+    // ---------------- ATTACK ----------------
     void Attack()
     {
         if (isAttacking) return;
 
-        float distance = Vector3.Distance(transform.position, player.position);
+        // Horizontal-only check
+        Vector3 flatEnemy = new Vector3(transform.position.x, 0, transform.position.z);
+        Vector3 flatPlayer = new Vector3(player.position.x, 0, player.position.z);
+        float distance = Vector3.Distance(flatEnemy, flatPlayer);
+
         if (distance > attackRange)
         {
             currentState = State.Chase;
@@ -145,22 +172,21 @@ public class EnemyAI : MonoBehaviour
         isAttacking = true;
         cooldownTimer = attackCooldown;
         attackTimer = attackDuration;
+
         agent.ResetPath();
 
-        // Rotate to face player instantly
+        // Rotate toward player
         Vector3 lookPos = new Vector3(player.position.x, transform.position.y, player.position.z);
         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookPos - transform.position), Time.deltaTime * rotationSpeed);
 
-        animator.ResetTrigger("Attack");
+        // 🔥 REQUIRED or attack will never play
         animator.SetTrigger("Attack");
     }
 
     public void DealDamage()
     {
         if (Vector3.Distance(transform.position, player.position) <= attackRange)
-        {
-            playerHealth.TakeDamage(10); // Damage amount
-        }
+            playerHealth.TakeDamage(10);
     }
 
     public void EndAttack()
@@ -179,22 +205,59 @@ public class EnemyAI : MonoBehaviour
 
         animator.ResetTrigger("Attack");
 
-        // Instantly cut the attack animation
-        if (animator.HasState(0, Animator.StringToHash("Walk")))
-            animator.CrossFade("Walk", 0.1f);
-        else if (animator.HasState(0, Animator.StringToHash("Walk")))
-            animator.CrossFade("Walk", 0.1f);
+        animator.CrossFade("Walk", 0.1f);
 
         if (agent.isOnNavMesh && player != null)
             agent.SetDestination(player.position);
     }
 
+    // ---------------- ROTATION ----------------
     void RotateTowardsMovementDirection()
     {
         if (agent.velocity.sqrMagnitude > 0.1f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(agent.velocity.normalized);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+        }
+    }
+
+    // ---------------- UNSTUCK SYSTEM ----------------
+    void HandleGlobalUnstuck()
+    {
+        if (agent.velocity.magnitude < 0.05f && !isAttacking)
+        {
+            stuckTimer += Time.deltaTime;
+
+            if (stuckTimer >= 0.6f)
+            {
+                Vector3 backPos = transform.position - transform.forward * 0.7f;
+
+                if (agent.isOnNavMesh)
+                    agent.SetDestination(backPos);
+
+                SetNewPatrolPoint();
+                currentState = State.Patrol;
+
+                stuckTimer = 0f;
+            }
+        }
+        else
+        {
+            stuckTimer = 0f;
+        }
+    }
+    public void AttackCheck()
+    {
+        // If player is close enough
+        float flatDistance = Vector3.Distance(
+            new Vector3(transform.position.x, 0, transform.position.z),
+            new Vector3(player.position.x, 0, player.position.z)
+        );
+
+        if (flatDistance <= attackRange)
+        {
+            // Trigger jumpscare
+            FindObjectOfType<JumpscareManager>().TriggerJumpscare();
         }
     }
 }
