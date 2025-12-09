@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace NavKeypad
 {
-    public class KeypadButton : MonoBehaviour
+    public class KeypadButton : MonoBehaviour, IInteractable
     {
         [Header("Value")]
         [SerializeField] private string value;
@@ -15,7 +15,7 @@ namespace NavKeypad
         [SerializeField] private Keypad keypad;
 
 
-        public void PressButton()
+        public void Interact()
         {
             if (!moving)
             {

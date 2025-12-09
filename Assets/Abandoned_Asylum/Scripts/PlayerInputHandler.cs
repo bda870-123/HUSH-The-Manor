@@ -3,6 +3,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -22,6 +23,7 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private string interact = "Interact";
     [SerializeField] private string crouch = "Crouch";
     [SerializeField] private string pause = "Pause";
+    [SerializeField] private string zoom = "Zoom";
 
     private InputAction moveAction;
     private InputAction lookAction;
@@ -30,6 +32,7 @@ public class PlayerInputHandler : MonoBehaviour
     private InputAction interactAction;
     private InputAction crouchAction;
     private InputAction pauseAction;
+    private InputAction zoomAction;
 
     public Vector2 MoveInput { get; private set; }
     public Vector2 LookInput { get; private set; }
@@ -38,6 +41,7 @@ public class PlayerInputHandler : MonoBehaviour
     public bool InteractTriggered { get; private set; }
     public bool CrouchTriggered { get; private set; }
     public bool PauseTriggered { get; private set; }
+    public bool ZoomTriggered { get; private set; }
     public bool IsUsingGamepad { get; private set; }
 
 
@@ -54,6 +58,7 @@ public class PlayerInputHandler : MonoBehaviour
         interactAction = mapReferences.FindAction(interact);
         crouchAction = mapReferences.FindAction(crouch);
         pauseAction = mapReferences.FindAction(pause);
+        zoomAction = mapReferences.FindAction(zoom);
 
         SubscribeActionValuesToInputEvents();
     }
@@ -73,6 +78,7 @@ public class PlayerInputHandler : MonoBehaviour
         lookAction.canceled += inputInfo => LookInput = Vector2.zero;
 
         jumpAction.performed += inputInfo => JumpTriggered = true;
+        jumpAction.canceled += inputInfo => JumpTriggered = false;
 
         sprintAction.performed += inputInfo => SprintTriggered = true;
         sprintAction.canceled += inputInfo => SprintTriggered = false;
@@ -83,14 +89,15 @@ public class PlayerInputHandler : MonoBehaviour
         crouchAction.canceled += inputInfo => CrouchTriggered = false;
 
         pauseAction.performed += inputInfo => PauseTriggered = true;
+
+        zoomAction.performed += inputInfo => ZoomTriggered = true;
+        zoomAction.canceled += inputInfo => ZoomTriggered = false;
     }
 
     private void LateUpdate()
     {
         InteractTriggered = false;
         PauseTriggered = false;
-        JumpTriggered = false;
-
     }
 
     private void OnEnable()
